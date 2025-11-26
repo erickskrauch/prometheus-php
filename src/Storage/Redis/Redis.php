@@ -15,6 +15,11 @@ final class Redis implements Adapter {
     private const HISTOGRAM_COUNT = 'count';
     private const HISTOGRAM_SUM = 'sum';
 
+    /**
+     * Use a dot as a delimiter because its cannot be part of a metric name
+     */
+    private const LABELS_VALUES_DELIMITER = '.';
+
     private readonly string $metricsHashKey;
 
     private readonly string $metaHashKey;
@@ -126,17 +131,7 @@ final class Redis implements Adapter {
 
         $metricsIterator = self::iterateRedisKeyValuesPairs($this->redis->hGetAll($this->metricsHashKey));
         foreach ($metricsIterator as $nameWithLabelsValues => $value) {
-            $jsonStartPos = strpos($nameWithLabelsValues, '[');
-            if ($jsonStartPos === false) {
-                $staleMetrics[] = $nameWithLabelsValues;
-                continue;
-            }
-
-            $name = substr($nameWithLabelsValues, 0, $jsonStartPos);
-            $encodedLabels = substr($nameWithLabelsValues, $jsonStartPos);
-            /** @var list<string> $labelsValues */
-            $labelsValues = json_decode($encodedLabels, true, flags: JSON_THROW_ON_ERROR);
-
+            [$name, $encodedLabels, $labelsValues] = self::toMetricNameAndLabels($nameWithLabelsValues);
             if (!isset($metas[$name])) {
                 $staleMetrics[] = $nameWithLabelsValues;
                 continue;
@@ -230,10 +225,29 @@ final class Redis implements Adapter {
     private static function toMetricMember(string $metricName, array $labelsValues): string {
         $member = $metricName;
         if ($labelsValues !== []) {
-            $member .= json_encode($labelsValues, JSON_THROW_ON_ERROR);
+            $member .= self::LABELS_VALUES_DELIMITER . json_encode($labelsValues, JSON_THROW_ON_ERROR);
         }
 
         return $member;
+    }
+
+    /**
+     * @return array{string, string, list<string>}
+     * @throws \JsonException
+     */
+    private static function toMetricNameAndLabels(string $metricMember): array {
+        $delimiterIndex = strpos($metricMember, self::LABELS_VALUES_DELIMITER);
+        if ($delimiterIndex === false) {
+            return [$metricMember, '', []];
+        }
+
+        $encodedLabels = substr($metricMember, $delimiterIndex + 1);
+
+        return [
+            substr($metricMember, 0, $delimiterIndex),
+            $encodedLabels,
+            json_decode($encodedLabels, true, flags: JSON_THROW_ON_ERROR),
+        ];
     }
 
     /**
