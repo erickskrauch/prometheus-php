@@ -6,9 +6,11 @@ namespace ErickSkrauch\Prometheus\Storage\Redis;
 use ErickSkrauch\Prometheus\Collector\Counter;
 use ErickSkrauch\Prometheus\Collector\Gauge;
 use ErickSkrauch\Prometheus\Collector\Histogram;
+use ErickSkrauch\Prometheus\Metric\HistogramSamplesBuilder;
 use ErickSkrauch\Prometheus\Metric\MetricFamilySamples;
 use ErickSkrauch\Prometheus\Metric\Sample;
 use ErickSkrauch\Prometheus\Storage\Adapter;
+use ErickSkrauch\Prometheus\Utils;
 
 final class Redis implements Adapter {
 
@@ -89,10 +91,12 @@ final class Redis implements Adapter {
         array $labelsNames,
         array $labelsValues,
     ): void {
+        // Update only the first matched bucket since HistogramSamplesBuilder will accumulate all values itself
         foreach ($buckets as $bucket) {
-            if ($value >= $bucket) {
+            if ($value <= $bucket) {
                 $member = self::toMetricMember($name, [...$labelsValues, (string)$bucket]);
                 $this->redis->hIncrByFloat($this->metricsHashKey, $member, 1);
+                break;
             }
         }
 
@@ -126,12 +130,12 @@ final class Redis implements Adapter {
         $staleMetrics = [];
         /** @var array<string, list<\ErickSkrauch\Prometheus\Metric\Sample>> $simpleMetricsSamples */
         $simpleMetricsSamples = [];
-        /** @var array<string, array<string, list<\ErickSkrauch\Prometheus\Metric\Sample>>> $histogramsSamplesGroups */
-        $histogramsSamplesGroups = [];
+        /** @var array<string, \ErickSkrauch\Prometheus\Metric\HistogramSamplesBuilder> $histogramsBuilders */
+        $histogramsBuilders = [];
 
         $metricsIterator = self::iterateRedisKeyValuesPairs($this->redis->hGetAll($this->metricsHashKey));
         foreach ($metricsIterator as $nameWithLabelsValues => $value) {
-            [$name, $encodedLabels, $labelsValues] = self::toMetricNameAndLabels($nameWithLabelsValues);
+            [$name, $labelsValues] = self::toMetricNameAndLabels($nameWithLabelsValues);
             if (!isset($metas[$name])) {
                 $staleMetrics[] = $nameWithLabelsValues;
                 continue;
@@ -141,51 +145,25 @@ final class Redis implements Adapter {
             $labelsNames = $metas[$name]['labelsNames'];
 
             if ($meta['type'] === Histogram::TYPE) {
-                $bucketOrSumTotal = array_last($labelsValues);
-                if ($bucketOrSumTotal === self::HISTOGRAM_SUM || $bucketOrSumTotal === self::HISTOGRAM_COUNT) {
-                    $name .= '_' . $bucketOrSumTotal;
-                    array_pop($labelsValues);
-                } else {
-                    $name .= '_bucket';
-                    $labelsNames[] = Histogram::LE;
+                if (!isset($histogramsBuilders[$name])) {
+                    $histogramsBuilders[$name] = new HistogramSamplesBuilder($name, $meta['buckets'], $meta['help'], $meta['labelsNames']);
                 }
 
-                $histogramsSamplesGroups[$name][$encodedLabels][] = new Sample($name, (float)$value, self::arrayCombine($labelsNames, $labelsValues));
+                $builder = $histogramsBuilders[$name];
+                $bucketOrSumTotal = array_pop($labelsValues);
+                if ($bucketOrSumTotal === self::HISTOGRAM_SUM) {
+                    $builder->setSum((float)$value, $labelsValues);
+                } elseif ($bucketOrSumTotal === self::HISTOGRAM_COUNT) {
+                    $builder->setCount((int)$value, $labelsValues);
+                } else {
+                    // @phpstan-ignore argument.type (The negative value at this point means that somebody manually changed value in the storage, which is invalid)
+                    $builder->fillBucket((float)$bucketOrSumTotal, (int)$value, $labelsValues);
+                }
 
                 continue;
             }
 
-            $simpleMetricsSamples[$name][] = new Sample($name, (float)$value, self::arrayCombine($labelsNames, $labelsValues));
-        }
-
-        foreach ($histogramsSamplesGroups as $name => $labelsGroups) {
-            $meta = $metas[$name];
-            $buckets = $meta['buckets'];
-            foreach ($labelsGroups as $samples) {
-                $acc = 0;
-                foreach ($buckets as $bucket) {
-                    foreach ($samples as $sample) {
-                        if (isset($sample->labels[Histogram::LE])) {
-                            continue;
-                        }
-
-                        if ((float)$sample->labels[Histogram::LE] === $bucket) {
-                            $acc = $sample->value;
-                            continue 2;
-                        }
-                    }
-
-                    /** @var \ErickSkrauch\Prometheus\Metric\Sample $bucketSample */
-                    $bucketSample = array_last($samples);
-                    $samples[] = new Sample($bucketSample->name, $acc, [...$bucketSample->labels, Histogram::LE => $bucket]);
-                }
-
-                usort($samples, static function(Sample $a, Sample $b): int {
-                    return ($a->labels[Histogram::LE] ?? null) <=> ($b->labels[Histogram::LE] ?? null);
-                });
-
-                $simpleMetricsSamples[$name] = $samples;
-            }
+            $simpleMetricsSamples[$name][] = new Sample($name, (float)$value, Utils::arrayCombine($labelsNames, $labelsValues));
         }
 
         $results = [];
@@ -196,6 +174,10 @@ final class Redis implements Adapter {
                 $metas[$name]['help'],
                 $samples,
             );
+        }
+
+        foreach ($histogramsBuilders as $builder) {
+            $results[] = $builder->build();
         }
 
         if ($staleMetrics !== []) {
@@ -224,21 +206,18 @@ final class Redis implements Adapter {
     }
 
     /**
-     * @return array{string, string, list<string>}
+     * @return array{string, list<string>}
      * @throws \JsonException
      */
     private static function toMetricNameAndLabels(string $metricMember): array {
         $delimiterIndex = strpos($metricMember, self::LABELS_VALUES_DELIMITER);
         if ($delimiterIndex === false) {
-            return [$metricMember, '', []];
+            return [$metricMember, []];
         }
-
-        $encodedLabels = substr($metricMember, $delimiterIndex + 1);
 
         return [
             substr($metricMember, 0, $delimiterIndex),
-            $encodedLabels,
-            json_decode($encodedLabels, true, flags: JSON_THROW_ON_ERROR),
+            json_decode(substr($metricMember, $delimiterIndex + 1), true, flags: JSON_THROW_ON_ERROR),
         ];
     }
 
@@ -256,20 +235,6 @@ final class Redis implements Adapter {
                 yield $key => $maybeKeyOrValue;
             }
         }
-    }
-
-    /**
-     * @param list<string> $keys
-     * @param list<string> $values
-     *
-     * @return array<string, string>
-     */
-    private static function arrayCombine(array $keys, array $values): array {
-        if ($keys === []) {
-            return [];
-        }
-
-        return array_combine($keys, $values);
     }
 
 }

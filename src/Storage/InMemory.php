@@ -5,7 +5,7 @@ namespace ErickSkrauch\Prometheus\Storage;
 
 use ErickSkrauch\Prometheus\Collector\Counter;
 use ErickSkrauch\Prometheus\Collector\Gauge;
-use ErickSkrauch\Prometheus\Collector\Histogram;
+use ErickSkrauch\Prometheus\Metric\HistogramSamplesBuilder;
 use ErickSkrauch\Prometheus\Metric\MetricFamilySamples;
 use ErickSkrauch\Prometheus\Metric\Sample;
 
@@ -37,7 +37,7 @@ final class InMemory implements Adapter {
 
     /**
      * @var array<string, array{
-     *     buckets: list<float>,
+     *     buckets: non-empty-list<float>,
      *     help: string,
      *     labelsNames: list<string>,
      *     samples: array<string, array{
@@ -134,10 +134,12 @@ final class InMemory implements Adapter {
             ];
         }
 
+        // Update only the first matched bucket since HistogramSamplesBuilder will accumulate all values itself
         foreach ($buckets as $i => $bucket) {
-            if ($bucket >= $value) {
+            if ($value <= $bucket) {
                 // @phpstan-ignore assign.propertyType (PHPStan thinks that setting $i key in this case might brake uniform index growth)
                 $this->histograms[$name]['samples'][$labelsKey]['buckets'][$i]++;
+                break;
             }
         }
 
@@ -183,28 +185,16 @@ final class InMemory implements Adapter {
         }
 
         foreach ($this->histograms as $name => $histogram) {
-            $samples = [];
             foreach ($histogram['samples'] as $sampleData) {
-                $labels = array_combine($histogram['labelsNames'], $sampleData['labelsValues']);
+                $builder = new HistogramSamplesBuilder($name, $histogram['buckets'], $histogram['help'], $histogram['labelsNames']);
+                $builder->setSum($sampleData['sum'], $sampleData['labelsValues']);
+                $builder->setCount($sampleData['count'], $sampleData['labelsValues']);
                 foreach ($sampleData['buckets'] as $i => $bucketValue) {
-                    $samples[] = new Sample(
-                        $name . '_bucket',
-                        $bucketValue,
-                        [...$labels, Histogram::LE => (string)$histogram['buckets'][$i]],
-                    );
+                    $builder->fillBucket($histogram['buckets'][$i], $bucketValue, $sampleData['labelsValues']);
                 }
 
-                $samples[] = new Sample($name . '_bucket', $sampleData['count'], [...$labels, Histogram::LE => Histogram::INF]);
-                $samples[] = new Sample($name . '_sum', $sampleData['sum'], $labels);
-                $samples[] = new Sample($name . '_count', $sampleData['count'], $labels);
+                $metrics[] = $builder->build();
             }
-
-            $metrics[] = new MetricFamilySamples(
-                $name,
-                Histogram::TYPE,
-                $histogram['help'],
-                $samples,
-            );
         }
 
         return $metrics;
