@@ -150,20 +150,12 @@ final class Redis implements Adapter {
                     $labelsNames[] = Histogram::LE;
                 }
 
-                $histogramsSamplesGroups[$name][$encodedLabels][] = new Sample(
-                    $name,
-                    (float)$value,
-                    array_combine($labelsNames, $labelsValues),
-                );
+                $histogramsSamplesGroups[$name][$encodedLabels][] = new Sample($name, (float)$value, self::arrayCombine($labelsNames, $labelsValues));
 
                 continue;
             }
 
-            $simpleMetricsSamples[$name][] = new Sample(
-                $name,
-                (float)$value,
-                array_combine($labelsNames, $labelsValues),
-            );
+            $simpleMetricsSamples[$name][] = new Sample($name, (float)$value, self::arrayCombine($labelsNames, $labelsValues));
         }
 
         foreach ($histogramsSamplesGroups as $name => $labelsGroups) {
@@ -264,6 +256,20 @@ final class Redis implements Adapter {
                 yield $key => $maybeKeyOrValue;
             }
         }
+    }
+
+    /**
+     * @param list<string> $keys
+     * @param list<string> $values
+     *
+     * @return array<string, string>
+     */
+    private static function arrayCombine(array $keys, array $values): array {
+        if ($keys === []) {
+            return [];
+        }
+
+        return array_combine($keys, $values);
     }
 
 }
