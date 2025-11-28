@@ -28,12 +28,10 @@ final class Redis implements Adapter {
 
     /**
      * @param non-empty-string $keysPrefix
-     * @param non-negative-int $expirationTimeout set 0 to disable metrics expiration
      */
     public function __construct(
         private readonly RedisClient $redis,
         private readonly string $keysPrefix = 'prometheus_',
-        private readonly int $expirationTimeout = 60 * 60 * 24 * 30, // 30 days
     ) {
         $this->metricsHashKey = $this->keysPrefix . 'metrics';
         $this->metaHashKey = $this->keysPrefix . 'meta';
@@ -66,7 +64,7 @@ final class Redis implements Adapter {
         if ($valueIsDelta) {
             $this->redis->hIncrByFloat($this->metricsHashKey, $member, $value);
         } else {
-            $this->redis->hSetEx($this->metricsHashKey, [$member => $value]);
+            $this->redis->hSet($this->metricsHashKey, $member, $value);
         }
 
         $this->storeMeta($name, [
@@ -184,13 +182,7 @@ final class Redis implements Adapter {
      * @throws \JsonException
      */
     private function storeMeta(string $metricName, array $meta): void {
-        $options = ['FNX'];
-        if ($this->expirationTimeout > 0) {
-            $options[] = 'EX';
-            $options[] = $this->expirationTimeout;
-        }
-
-        $this->redis->hSetEx($this->metaHashKey, [$metricName => json_encode($meta, JSON_THROW_ON_ERROR)], $options);
+        $this->redis->hSetNx($this->metaHashKey, $metricName, json_encode($meta, JSON_THROW_ON_ERROR));
     }
 
     /**

@@ -18,15 +18,18 @@ interface RedisClient {
     public function hGetAll(string $key): array;
 
     /**
-     * When backend doesn't support this command, must be implemented via HSET
-     * with handling of the FNX option (probably via HSETNX).
+     * @see https://redis.io/docs/latest/commands/hsetnx/
      *
-     * @see https://redis.io/docs/latest/commands/hsetex/
-     *
-     * @param array<string, scalar> $values
-     * @param list<scalar> $options ex. ['FNX', 'EX', 1234]
+     * @param scalar $value
      */
-    public function hSetEx(string $key, array $values, array $options = []): void;
+    public function hSet(string $key, string $member, mixed $value): void;
+
+    /**
+     * @see https://redis.io/docs/latest/commands/hsetnx/
+     *
+     * @param scalar $value
+     */
+    public function hSetNx(string $key, string $member, mixed $value): void;
 
     /**
      * https://redis.io/docs/latest/commands/hincrbyfloat/
