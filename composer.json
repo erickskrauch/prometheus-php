@@ -11,8 +11,7 @@
     ],
     "require": {
         "php": "^8.1",
-        "ext-json": "*",
-        "symfony/polyfill-php85": "^1"
+        "ext-json": "*"
     },
     "require-dev": {
         "ely/php-code-style": "^1.0",
