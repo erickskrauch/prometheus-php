@@ -24,7 +24,7 @@ interface RedisClient {
      * @see https://redis.io/docs/latest/commands/hsetex/
      *
      * @param array<string, scalar> $values
-     * @param array<mixed> $options ex. ['FNX', 'EX' => 1234]
+     * @param list<scalar> $options ex. ['FNX', 'EX', 1234]
      */
     public function hSetEx(string $key, array $values, array $options = []): void;
 

@@ -26,9 +26,14 @@ final class Redis implements Adapter {
 
     private readonly string $metaHashKey;
 
+    /**
+     * @param non-empty-string $keysPrefix
+     * @param non-negative-int $expirationTimeout set 0 to disable metrics expiration
+     */
     public function __construct(
         private readonly RedisClient $redis,
-        private readonly string $keysPrefix = 'PROMETHEUS_',
+        private readonly string $keysPrefix = 'prometheus_',
+        private readonly int $expirationTimeout = 60 * 60 * 24 * 30, // 30 days
     ) {
         $this->metricsHashKey = $this->keysPrefix . 'metrics';
         $this->metaHashKey = $this->keysPrefix . 'meta';
@@ -42,17 +47,11 @@ final class Redis implements Adapter {
         array $labelsValues,
     ): void {
         $this->redis->hIncrByFloat($this->metricsHashKey, self::toMetricMember($name, $labelsValues), $delta);
-        $this->redis->hSetEx(
-            $this->metaHashKey,
-            [
-                $name => json_encode([
-                    'type' => Counter::TYPE,
-                    'help' => $help,
-                    'labelsNames' => $labelsNames,
-                ], JSON_THROW_ON_ERROR),
-            ],
-            ['FNX'],
-        );
+        $this->storeMeta($name, [
+            'type' => Counter::TYPE,
+            'help' => $help,
+            'labelsNames' => $labelsNames,
+        ]);
     }
 
     public function updateGauge(
@@ -70,17 +69,11 @@ final class Redis implements Adapter {
             $this->redis->hSetEx($this->metricsHashKey, [$member => $value]);
         }
 
-        $this->redis->hSetEx(
-            $this->metaHashKey,
-            [
-                $name => json_encode([
-                    'type' => Gauge::TYPE,
-                    'help' => $help,
-                    'labelsNames' => $labelsNames,
-                ], JSON_THROW_ON_ERROR),
-            ],
-            ['FNX'],
-        );
+        $this->storeMeta($name, [
+            'type' => Gauge::TYPE,
+            'help' => $help,
+            'labelsNames' => $labelsNames,
+        ]);
     }
 
     public function updateHistogram(
@@ -106,18 +99,12 @@ final class Redis implements Adapter {
         $member = self::toMetricMember($name, [...$labelsValues, self::HISTOGRAM_SUM]);
         $this->redis->hIncrByFloat($this->metricsHashKey, $member, $value);
 
-        $this->redis->hSetEx(
-            $this->metaHashKey,
-            [
-                $name => json_encode([
-                    'type' => Histogram::TYPE,
-                    'buckets' => $buckets,
-                    'help' => $help,
-                    'labelsNames' => $labelsNames,
-                ], JSON_THROW_ON_ERROR),
-            ],
-            ['FNX'],
-        );
+        $this->storeMeta($name, [
+            'type' => Histogram::TYPE,
+            'buckets' => $buckets,
+            'help' => $help,
+            'labelsNames' => $labelsNames,
+        ]);
     }
 
     public function collect(bool $sortMetrics = true): array {
@@ -189,6 +176,21 @@ final class Redis implements Adapter {
 
     public function wipeStorage(): void {
         $this->redis->del($this->metaHashKey, $this->metricsHashKey);
+    }
+
+    /**
+     * @param array<mixed> $meta
+     *
+     * @throws \JsonException
+     */
+    private function storeMeta(string $metricName, array $meta): void {
+        $options = ['FNX'];
+        if ($this->expirationTimeout > 0) {
+            $options[] = 'EX';
+            $options[] = $this->expirationTimeout;
+        }
+
+        $this->redis->hSetEx($this->metaHashKey, [$metricName => json_encode($meta, JSON_THROW_ON_ERROR)], $options);
     }
 
     /**
