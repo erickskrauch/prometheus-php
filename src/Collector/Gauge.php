@@ -8,7 +8,7 @@ final class Gauge extends Collector {
     public const TYPE = 'gauge';
 
     /**
-     * @param list<string> $labelsValues e.g. ['status', 'opcode']
+     * @param list<scalar> $labelsValues e.g. ['status', 'opcode']
      *
      * @throws \ErickSkrauch\Prometheus\Exception\StorageException
      */
@@ -17,7 +17,7 @@ final class Gauge extends Collector {
     }
 
     /**
-     * @param list<string> $labelsValues
+     * @param list<scalar> $labelsValues
      *
      * @throws \ErickSkrauch\Prometheus\Exception\StorageException
      */
@@ -26,7 +26,7 @@ final class Gauge extends Collector {
     }
 
     /**
-     * @param list<string> $labelsValues
+     * @param list<scalar> $labelsValues
      *
      * @throws \ErickSkrauch\Prometheus\Exception\StorageException
      */
@@ -38,7 +38,7 @@ final class Gauge extends Collector {
             $valueIsDelta,
             $this->help,
             $this->labelsNames,
-            $labelsValues,
+            self::castLabelsValuesToString($labelsValues),
         );
 
         return $this;

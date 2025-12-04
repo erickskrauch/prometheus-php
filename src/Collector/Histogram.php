@@ -72,7 +72,7 @@ final class Histogram extends Collector {
     }
 
     /**
-     * @param list<string> $labelsValues e.g. ['status', 'opcode']
+     * @param list<scalar> $labelsValues e.g. ['status', 'opcode']
      *
      * @throws \ErickSkrauch\Prometheus\Exception\StorageException
      */
@@ -85,7 +85,7 @@ final class Histogram extends Collector {
             $this->buckets,
             $this->help,
             $this->labelsNames,
-            $labelsValues,
+            self::castLabelsValuesToString($labelsValues),
         );
     }
 

@@ -8,7 +8,7 @@ final class Counter extends Collector {
     public const TYPE = 'counter';
 
     /**
-     * @param list<string> $labelsValues e.g. ['status', 'opcode']
+     * @param list<scalar> $labelsValues e.g. ['status', 'opcode']
      *
      * @throws \ErickSkrauch\Prometheus\Exception\StorageException
      */
@@ -20,7 +20,7 @@ final class Counter extends Collector {
             $delta,
             $this->help,
             $this->labelsNames,
-            $labelsValues,
+            self::castLabelsValuesToString($labelsValues),
         );
 
         return $this;

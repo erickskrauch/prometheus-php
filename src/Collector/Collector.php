@@ -24,12 +24,27 @@ abstract class Collector {
     }
 
     /**
-     * @param list<string> $labelsValues
+     * @param list<scalar> $labelsValues
      */
     protected function assertLabelsAreDefinedCorrectly(array $labelsValues): void {
         if (count($labelsValues) !== count($this->labelsNames)) {
             throw new InvalidArgumentException(sprintf('Labels are not defined correctly: %s', print_r($labelsValues, true)));
         }
+    }
+
+    /**
+     * @param list<scalar> $labelsValues
+     *
+     * @return list<string>
+     */
+    protected static function castLabelsValuesToString(array $labelsValues): array {
+        return array_map(static function($value): string {
+            if (is_bool($value)) {
+                return $value ? '1' : '0';
+            }
+
+            return (string)$value;
+        }, $labelsValues);
     }
 
     private static function assertValidMetricName(string $metricName): void {
