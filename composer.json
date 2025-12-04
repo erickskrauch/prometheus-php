@@ -19,11 +19,18 @@
         "friendsofphp/php-cs-fixer": "^3.89",
         "phpstan/extension-installer": "^1.0",
         "phpstan/phpstan": "^2",
-        "phpstan/phpstan-strict-rules": "^2"
+        "phpstan/phpstan-phpunit": "^2",
+        "phpstan/phpstan-strict-rules": "^2",
+        "phpunit/phpunit": "^10"
     },
     "autoload": {
         "psr-4": {
             "ErickSkrauch\\Prometheus\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "ErickSkrauch\\Prometheus\\Tests\\": "tests/"
         }
     },
     "config": {

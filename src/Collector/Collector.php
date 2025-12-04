@@ -9,6 +9,7 @@ use InvalidArgumentException;
 abstract class Collector {
 
     /**
+     * @param non-empty-string $name
      * @param list<string> $labelsNames
      */
     public function __construct(

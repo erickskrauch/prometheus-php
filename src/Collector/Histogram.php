@@ -28,7 +28,7 @@ final class Histogram extends Collector {
         Adapter $adapter,
         string $name,
         private readonly array $buckets,
-        string $help,
+        string $help = '',
         array $labelsNames = [],
     ) {
         parent::__construct($adapter, $name, $help, $labelsNames);
@@ -43,32 +43,8 @@ final class Histogram extends Collector {
         }
 
         if (in_array(self::LE, $labelsNames, true)) {
-            throw new InvalidArgumentException("Histogram cannot have a label named 'le'.");
+            throw new InvalidArgumentException('Histogram cannot have a label named "le"');
         }
-    }
-
-    /**
-     * @param positive-int $numberOfBuckets
-     *
-     * @return non-empty-list<float>
-     */
-    public static function exponentialBuckets(float $start, float $growthFactor, int $numberOfBuckets): array {
-        if ($start <= 0) {
-            throw new InvalidArgumentException('The starting position of a set of buckets must be a positive integer');
-        }
-
-        if ($growthFactor <= 1) {
-            throw new InvalidArgumentException('The growth factor must greater than 1');
-        }
-
-        $buckets = [];
-        for ($i = 0; $i < $numberOfBuckets; $i++) {
-            $buckets[] = $start;
-            $start *= $growthFactor;
-        }
-
-        // @phpstan-ignore return.type (I can't convince PHPStan, that this array can't be an empty)
-        return $buckets;
     }
 
     /**
