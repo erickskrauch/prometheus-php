@@ -61,11 +61,11 @@ class MetricsController
 }
 ```
 
-[ico-version]: https://img.shields.io/packagist/v/erickskrauch/prometheus-php.svg?style=flat-square
+[ico-version]: https://img.shields.io/packagist/v/erickskrauch/prometheus.svg?style=flat-square
 [ico-license]: https://img.shields.io/badge/license-MIT-green.svg?style=flat-square
-[ico-downloads]: https://img.shields.io/packagist/dt/erickskrauch/prometheus-php.svg?style=flat-square
+[ico-downloads]: https://img.shields.io/packagist/dt/erickskrauch/prometheus.svg?style=flat-square
 [ico-build-status]: https://img.shields.io/github/actions/workflow/status/erickskrauch/prometheus-php/ci.yml?branch=master&style=flat-square
 
-[link-packagist]: https://packagist.org/packages/erickskrauch/prometheus-php
-[link-downloads]: https://packagist.org/packages/erickskrauch/prometheus-php/stats
+[link-packagist]: https://packagist.org/packages/erickskrauch/prometheus
+[link-downloads]: https://packagist.org/packages/erickskrauch/prometheus/stats
 [link-build-status]: https://github.com/erickskrauch/prometheus-php/actions
