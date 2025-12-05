@@ -7,7 +7,7 @@ use Predis\Client as PredisClient;
 
 final class Predis implements RedisClient {
 
-    public function __construct(
+    private function __construct(
         private readonly PredisClient $redis,
     ) {
     }

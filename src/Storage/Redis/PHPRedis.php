@@ -7,7 +7,7 @@ use Redis;
 
 final class PHPRedis implements RedisClient {
 
-    public function __construct(
+    private function __construct(
         private readonly Redis $redis,
     ) {
     }
