@@ -14,6 +14,7 @@
         "ext-json": "*"
     },
     "require-dev": {
+        "ext-redis": ">=6",
         "ely/php-code-style": "^1",
         "ergebnis/composer-normalize": "^2.48",
         "friendsofphp/php-cs-fixer": "^3.89",
@@ -22,6 +23,7 @@
         "phpstan/phpstan-phpunit": "^2",
         "phpstan/phpstan-strict-rules": "^2",
         "phpunit/phpunit": "^10",
+        "predis/predis": "^2 || ^3",
         "roave/security-advisories": "dev-latest"
     },
     "autoload": {

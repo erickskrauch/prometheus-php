@@ -5,3 +5,5 @@ parameters:
     - tests
   ignoreErrors:
     - '#Dynamic call to static method PHPUnit\\Framework\\.*#'
+    - identifier: ternary.shortNotAllowed
+      path: tests

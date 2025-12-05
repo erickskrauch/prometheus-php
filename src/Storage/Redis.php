@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-namespace ErickSkrauch\Prometheus\Storage\Redis;
+namespace ErickSkrauch\Prometheus\Storage;
 
 use ErickSkrauch\Prometheus\Collector\Counter;
 use ErickSkrauch\Prometheus\Collector\Gauge;
@@ -9,7 +9,7 @@ use ErickSkrauch\Prometheus\Collector\Histogram;
 use ErickSkrauch\Prometheus\Metric\HistogramSamplesBuilder;
 use ErickSkrauch\Prometheus\Metric\MetricFamilySamples;
 use ErickSkrauch\Prometheus\Metric\Sample;
-use ErickSkrauch\Prometheus\Storage\Adapter;
+use ErickSkrauch\Prometheus\Storage\Redis\RedisClient;
 use ErickSkrauch\Prometheus\Utils;
 
 final class Redis implements Adapter {
@@ -64,7 +64,7 @@ final class Redis implements Adapter {
         if ($valueIsDelta) {
             $this->redis->hIncrByFloat($this->metricsHashKey, $member, $value);
         } else {
-            $this->redis->hSet($this->metricsHashKey, $member, $value);
+            $this->redis->hSet($this->metricsHashKey, $member, (string)$value);
         }
 
         $this->storeMeta($name, [
@@ -107,7 +107,7 @@ final class Redis implements Adapter {
 
     public function collect(bool $sortMetrics = true): array {
         $metas = [];
-        $metasIterator = self::iterateRedisKeyValuesPairs($this->redis->hGetAll($this->metaHashKey));
+        $metasIterator = $this->redis->hGetAll($this->metaHashKey);
         foreach ($metasIterator as $name => $encodedMeta) {
             $metas[$name] = json_decode($encodedMeta, true, flags: JSON_THROW_ON_ERROR);
         }
@@ -118,7 +118,7 @@ final class Redis implements Adapter {
         /** @var array<string, \ErickSkrauch\Prometheus\Metric\HistogramSamplesBuilder> $histogramsBuilders */
         $histogramsBuilders = [];
 
-        $metricsIterator = self::iterateRedisKeyValuesPairs($this->redis->hGetAll($this->metricsHashKey));
+        $metricsIterator = $this->redis->hGetAll($this->metricsHashKey);
         foreach ($metricsIterator as $nameWithLabelsValues => $value) {
             [$name, $labelsValues] = self::toMetricNameAndLabels($nameWithLabelsValues);
             if (!isset($metas[$name])) {
@@ -213,22 +213,6 @@ final class Redis implements Adapter {
             substr($metricMember, 0, $delimiterIndex),
             json_decode(substr($metricMember, $delimiterIndex + 1), true, flags: JSON_THROW_ON_ERROR),
         ];
-    }
-
-    /**
-     * @param list<string> $result
-     *
-     * @return iterable<string, string>
-     */
-    private static function iterateRedisKeyValuesPairs(array $result): iterable {
-        $key = '';
-        foreach ($result as $i => $maybeKeyOrValue) {
-            if ($i % 2 === 0) {
-                $key = $maybeKeyOrValue;
-            } else {
-                yield $key => $maybeKeyOrValue;
-            }
-        }
     }
 
 }

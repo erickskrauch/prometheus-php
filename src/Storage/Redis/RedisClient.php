@@ -13,23 +13,20 @@ interface RedisClient {
     /**
      * @see https://redis.io/docs/latest/commands/hgetall/
      *
-     * @return list<string> MUST return empty array when no results found
+     * @return iterable<string, string> MUST return empty array when no results found.
+     *                                  Might be implemented with HSCAN if applied to the extra large metrics sets.
      */
-    public function hGetAll(string $key): array;
+    public function hGetAll(string $key): iterable;
+
+    /**
+     * @see https://redis.io/docs/latest/commands/hset/
+     */
+    public function hSet(string $key, string $member, string $value): void;
 
     /**
      * @see https://redis.io/docs/latest/commands/hsetnx/
-     *
-     * @param scalar $value
      */
-    public function hSet(string $key, string $member, mixed $value): void;
-
-    /**
-     * @see https://redis.io/docs/latest/commands/hsetnx/
-     *
-     * @param scalar $value
-     */
-    public function hSetNx(string $key, string $member, mixed $value): void;
+    public function hSetNx(string $key, string $member, string $value): void;
 
     /**
      * https://redis.io/docs/latest/commands/hincrbyfloat/

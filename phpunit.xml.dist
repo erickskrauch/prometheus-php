@@ -11,10 +11,17 @@
     columns="max"
 >
     <testsuites>
-        <testsuite name="all">
+        <testsuite name="unit">
             <directory>./tests</directory>
         </testsuite>
     </testsuites>
+
+    <!-- This makes PHPUnit run only ungrouped tests, excluding integrational -->
+    <groups>
+        <include>
+            <group>default</group>
+        </include>
+    </groups>
 
     <source>
         <include>
