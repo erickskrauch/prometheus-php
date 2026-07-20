@@ -16,5 +16,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Initial release.
 
 [Unreleased]: https://github.com/erickskrauch/prometheus-php/compare/0.1.1...HEAD
-[0.1.1]: https://github.com/erickskrauch/prometheus-php/compare/0.1.1...0.1.0
+[0.1.1]: https://github.com/erickskrauch/prometheus-php/compare/0.1.0...0.1.1
 [0.1.0]: https://github.com/erickskrauch/prometheus-php/releases/tag/0.1.0
