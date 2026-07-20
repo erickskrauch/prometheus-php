@@ -57,7 +57,8 @@ final class HistogramSamplesBuilder {
      * @throws \InvalidArgumentException
      */
     public function fillBucket(float $bucket, int $value, array $labelsValues): void {
-        $bucketN = array_search($bucket, $this->buckets, true);
+        // @phpstan-ignore function.strict (loose comparison is intentional, for bucket 1.0 PHP will write an array entry 1 and with strict comparison it will fail search)
+        $bucketN = array_search($bucket, $this->buckets);
         if ($bucketN === false) {
             throw new InvalidArgumentException('Unable to find bucket for provided value');
         }
