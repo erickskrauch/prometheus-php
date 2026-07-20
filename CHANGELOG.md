@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Histogram building for non-fractional bucket sizes (e.g. 1.0).
+- Histogram samples for all label combinations but the first being silently dropped.
 
 ## [0.1.0] - 2025-12-05
 Initial release.

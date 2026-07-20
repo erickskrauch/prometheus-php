@@ -27,6 +27,24 @@ final class HistogramSamplesBuilderTest extends TestCase {
         $this->assertSame(0, self::findBucketSample($result->samples, '0.1')->value);
         $this->assertSame(1, self::findBucketSample($result->samples, '0.5')->value);
         $this->assertSame(2, self::findBucketSample($result->samples, '1')->value);
+        $this->assertSame(2, self::findBucketSample($result->samples, '+Inf')->value);
+    }
+
+    public function testFillBucketWithDifferentLabels(): void {
+        $builder = new HistogramSamplesBuilder('mock', [0.1, 0.5], '', ['label']);
+        $builder->fillBucket(0.1, 1, ['first']);
+        $builder->setCount(1, ['first']);
+        $builder->setSum(1.5, ['first']);
+
+        $builder->fillBucket(0.5, 1, ['second']);
+        $builder->setCount(1, ['second']);
+        $builder->setSum(1.5, ['second']);
+
+        $result = $builder->build();
+        $this->assertSame(1, self::findBucketSample($result->samples, '0.1', ['first'])->value);
+        $this->assertSame(1, self::findBucketSample($result->samples, '0.5', ['first'])->value);
+        $this->assertSame(0, self::findBucketSample($result->samples, '0.1', ['second'])->value);
+        $this->assertSame(1, self::findBucketSample($result->samples, '0.5', ['second'])->value);
     }
 
     public function testFillBucketThrowsWhenBoundaryIsNotAmongTheBuckets(): void {
@@ -40,15 +58,26 @@ final class HistogramSamplesBuilderTest extends TestCase {
 
     /**
      * @param list<Sample> $samples
+     * @param list<string> $labels
      */
-    private static function findBucketSample(array $samples, string $le): Sample {
+    private static function findBucketSample(array $samples, string $le, array $labels = []): Sample {
         foreach ($samples as $sample) {
-            if (str_contains($sample->name, 'bucket') && $sample->labels[Histogram::LE] === $le) {
-                return $sample;
+            if (!str_contains($sample->name, 'bucket')) {
+                continue;
             }
+
+            if ($sample->labels[Histogram::LE] !== $le) {
+                continue;
+            }
+
+            if ($labels !== [] && array_diff($labels, array_values($sample->labels)) !== []) {
+                continue;
+            }
+
+            return $sample;
         }
 
-        self::fail("No bucket sample with le=\"{$le}\" found");
+        self::fail(sprintf('No bucket sample with le="%s" and labels [%s] found', $le, implode(', ', $labels)));
     }
 
 }

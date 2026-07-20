@@ -87,7 +87,7 @@ final class HistogramSamplesBuilder {
             $groupSamples[] = new Sample($this->name . '_count', $metricsGroup['count'], $labels);
             $groupSamples[] = new Sample($this->name . '_sum', $metricsGroup['sum'], $labels);
 
-            $samples += $groupSamples;
+            array_push($samples, ...$groupSamples);
         }
 
         return new MetricFamilySamples($this->name, Histogram::TYPE, $this->help, $samples);
